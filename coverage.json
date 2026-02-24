@@ -1,0 +1,45 @@
+{
+  "kind": "coverage_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-24T14:06:06.708Z",
+  "sources": {
+    "buildRequest": true,
+    "implementationPlan": true
+  },
+  "requirements": {
+    "total": 1,
+    "implemented": 1,
+    "items": [
+      {
+        "id": "REQ-11",
+        "summary": "Add a Live Voice Chat tab or mode to the existing AI Tutor page (frontend/src/pages/AITutor.tsx) that enables real-time spoken conversation between the student and the AI biology tutor, similar to ChatGPT's voice mode. The interface must include: a large microphone button to start/stop listening, a visual audio waveform or pulsing animation while the AI is speaking or the user is speaking, a status indicator showing 'Listening…', 'Thinking…', or 'Speaking…' states, and a transcript panel that displays the spoken conversation turns in real time. Use the browser's Web Speech API (SpeechRecognition) to capture the student's voice input and convert it to text, pass that text to the existing bioAI client-side tutor logic to generate a biology response, and use the browser's Web Speech Synthesis API (speechSynthesis) to read the AI response aloud. The voice chat must support interruption — if the student starts speaking while the AI is talking, synthesis stops and recognition restarts immediately.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/hooks/useVoiceChat.ts",
+          "frontend/src/components/VoiceChatInterface.tsx",
+          "frontend/src/pages/AITutor.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/hooks/useVoiceChat.ts",
+          "frontend/src/components/VoiceChatInterface.tsx",
+          "frontend/src/pages/AITutor.tsx"
+        ]
+      }
+    ]
+  },
+  "changedFiles": [
+    "build-request.json",
+    "build-template/README.md",
+    "feature_evidence.json",
+    "frontend-file-summaries.txt",
+    "frontend-implementation-plan.json",
+    "frontend/src/components/VoiceChatInterface.tsx",
+    "frontend/src/hooks/useVoiceChat.ts",
+    "frontend/src/index.css",
+    "frontend/src/pages/AITutor.tsx",
+    "project_state.json",
+    "scratch/component-selection.json",
+    "spec.md",
+    "spec_vs_diff_report.json"
+  ]
+}

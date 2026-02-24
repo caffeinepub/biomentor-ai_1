@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 5,
+  "summary": "AI-powered web platform for biology and life science students featuring an advanced conversational AI tutor (text and voice). Core features: AI tutor acting as a biology professor with step-by-step explanations (both text chat and live voice chat similar to ChatGPT voice mode), PPT/document upload and analysis, live doubt solving, notes and study material generator, exam-oriented question generator (2-mark to long-answer, MCQs, assertion-reason), mentorship mode, adaptive learning system, student dashboard with progress tracking, 1-day free trial then paid subscription, English only.",
+  "architectural_notes": [
+    "English only — multilingual support removed per user request",
+    "1-day free trial after signup, then paid subscription required for full access",
+    "Voice chat feature required: real-time AI voice conversation (speech-to-text + text-to-speech) similar to ChatGPT voice mode, alongside existing text chat"
+  ],
+  "known_issues": [],
+  "isFixRequest": false,
+  "existing_features": [
+    {
+      "id": "feature-implement-user-authentication-with-internet-identity-including-a-signup-login-flow-and-a-student-profile-stored-in-the-backend-name-email-subscription-status-trial-start-date",
+      "title": "Implement user authentication with Internet Identity, including a signup/login flow, and a student profile stored in the backend (name, email, subscription status, trial start date).",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-a-1-day-free-trial-gating-system-after-24-hours-from-first-login-restrict-access-to-all-ai-tutor-features-and-prompt-the-student-to-subscribe-track-trial-expiry-in-the-backend",
+      "title": "Implement a 1-day free trial gating system: after 24 hours from first login, restrict access to all AI tutor features and prompt the student to subscribe. Track trial expiry in the backend.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-student-dashboard-that-shows-current-subscription-trial-status-progress-summary-topics-studied-weak-areas-revision-plans-recent-activity-and-quick-navigation-to-all-feature-modules",
+      "title": "Build a student dashboard that shows: current subscription/trial status, progress summary (topics studied, weak areas, revision plans), recent activity, and quick navigation to all feature modules.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-conversational-ai-tutor-module-that-simulates-a-biology-professor-the-tutor-must-support-multi-turn-conversation-provide-step-by-step-explanations-and-allow-students-to-interrupt-at-any-time-to-ask-doubts-store-conversation-history-per-student-session-in-the-backend",
+      "title": "Build a conversational AI Tutor module that simulates a biology professor. The tutor must support multi-turn conversation, provide step-by-step explanations, and allow students to interrupt at any time to ask doubts. Store conversation history per student session in the backend.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-ppt-and-document-upload-module-where-students-can-upload-biology-study-materials-pdf-pptx-the-backend-stores-upload-metadata-and-extracted-text-the-frontend-displays-ai-analyzed-content-key-mechanisms-pathways-and-exam-highlights-extracted-from-the-uploaded-material",
+      "title": "Build a PPT and document upload module where students can upload biology study materials (PDF, PPTX). The backend stores upload metadata and extracted text. The frontend displays AI-analyzed content: key mechanisms, pathways, and exam highlights extracted from the uploaded material.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-notes-generator-module-students-input-a-biology-topic-or-paste-content-and-the-system-generates-detailed-notes-short-revision-notes-bullet-summaries-mechanism-notes-and-key-definitions-display-results-in-clearly-labeled-sections-with-copy-download-options",
+      "title": "Build a Notes Generator module. Students input a biology topic or paste content, and the system generates: detailed notes, short revision notes, bullet summaries, mechanism notes, and key definitions. Display results in clearly labeled sections with copy/download options.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-an-exam-question-generator-module-students-specify-a-topic-question-type-2-mark-5-mark-8-mark-10-mark-mcq-assertion-reason-case-based-and-the-system-generates-university-format-questions-with-structured-model-answers",
+      "title": "Build an Exam Question Generator module. Students specify a topic, question type (2-mark, 5-mark, 8-mark, 10-mark, MCQ, assertion-reason, case-based), and the system generates university-format questions with structured model answers.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-a-mentorship-mode-module-where-students-can-ask-for-textbook-recommendations-study-strategies-exam-preparation-guidance-and-career-guidance-in-biology-and-life-sciences-responses-are-structured-and-actionable",
+      "title": "Build a Mentorship Mode module where students can ask for: textbook recommendations, study strategies, exam preparation guidance, and career guidance in biology and life sciences. Responses are structured and actionable.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-build-an-adaptive-learning-system-the-backend-tracks-which-topics-a-student-has-studied-records-performance-on-practice-questions-identifies-weak-topics-and-generates-a-personalized-revision-plan-the-frontend-displays-weak-topics-practice-question-prompts-and-a-revision-schedule",
+      "title": "Build an Adaptive Learning System. The backend tracks which topics a student has studied, records performance on practice questions, identifies weak topics, and generates a personalized revision plan. The frontend displays weak topics, practice question prompts, and a revision schedule.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-apply-a-cohesive-visual-theme-across-the-entire-application-a-clean-academic-yet-modern-design-with-a-deep-teal-and-warm-amber-color-palette-professional-serif-inspired-typography-for-headings-and-clean-sans-serif-for-body-text-card-based-layouts-with-subtle-shadows-and-a-left-side-navigation-panel-for-desktop-the-theme-must-convey-scientific-authority-and-approachability-for-biology-students",
+      "title": "Apply a cohesive visual theme across the entire application: a clean, academic yet modern design with a deep teal and warm amber color palette, professional serif-inspired typography for headings and clean sans-serif for body text, card-based layouts with subtle shadows, and a left-side navigation panel for desktop. The theme must convey scientific authority and approachability for biology students.",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-live-voice-chat-tab-or-mode-to-the-existing-ai-tutor-page-frontend-src-pages-aitutor-tsx-that-enables-real-time-spoken-conversation-between-the-student-and-the-ai-biology-tutor-similar-to-chatgpt-s-voice-mode-the-interface-must-include-a-large-microphone-button-to-start-stop-listening-a-visual-audio-waveform-or-pulsing-animation-while-the-ai-is-speaking-or-the-user-is-speaking-a-status-indicator-showing-listening-thinking-or-speaking-states-and-a-transcript-panel-that-displays-the-spoken-conversation-turns-in-real-time-use-the-browser-s-web-speech-api-speechrecognition-to-capture-the-student-s-voice-input-and-convert-it-to-text-pass-that-text-to-the-existing-bioai-client-side-tutor-logic-to-generate-a-biology-response-and-use-the-browser-s-web-speech-synthesis-api-speechsynthesis-to-read-the-ai-response-aloud-the-voice-chat-must-support-interruption-if-the-student-starts-speaking-while-the-ai-is-talking-synthesis-stops-and-recognition-restarts-immediately",
+      "title": "Add a Live Voice Chat tab or mode to the existing AI Tutor page (frontend/src/pages/AITutor.tsx) that enables real-time spoken conversation between the student and the AI biology tutor, similar to ChatGPT's voice mode. The interface must include: a large microphone button to start/stop listening, a visual audio waveform or pulsing animation while the AI is speaking or the user is speaking, a status indicator showing 'Listening…', 'Thinking…', or 'Speaking…' states, and a transcript panel that displays the spoken conversation turns in real time. Use the browser's Web Speech API (SpeechRecognition) to capture the student's voice input and convert it to text, pass that text to the existing bioAI client-side tutor logic to generate a biology response, and use the browser's Web Speech Synthesis API (speechSynthesis) to read the AI response aloud. The voice chat must support interruption — if the student starts speaking while the AI is talking, synthesis stops and recognition restarts immediately.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Conversational AI tutor simulating a live biology professor with step-by-step explanations and classroom-style interaction",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "PPT and biology document upload with AI analysis of content, mechanisms, pathways, and exam highlights",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Live doubt solving mode where students can interrupt anytime for simple/advanced explanations, analogies, and stepwise breakdowns",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Notes and study material generator: detailed notes, short revision notes, bullet summaries, flowcharts, mechanism notes, key definitions",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Exam-oriented question generator: 2/5/8/10-mark questions, MCQs, assertion-reason, case-based questions with structured university-format answers",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Mentorship mode: textbook suggestions, study strategies, exam prep guidance, career guidance in biology/life sciences",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "Adaptive learning system: tracks weak topics, asks practice questions, increases difficulty gradually, provides performance feedback and revision plan",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "User login/signup, student dashboard with progress tracking, 1-day free trial then paid subscription model",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Live AI voice chat mode (similar to ChatGPT voice) — real-time spoken conversation between student and AI tutor for biology tutoring",
+      "reqIds": [],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "BioMentor AI",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

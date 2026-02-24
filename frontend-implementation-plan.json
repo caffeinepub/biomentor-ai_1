@@ -1,0 +1,39 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Add Live AI Voice Chat Mode to AI Tutor",
+  "requirements": [
+    {
+      "id": "REQ-11",
+      "summary": "Add a Live Voice Chat tab to the AI Tutor page enabling real-time spoken conversation using browser Web Speech API (SpeechRecognition + speechSynthesis), with visual feedback, interruption support, and transcript display",
+      "acceptanceCriteria": [
+        "The AI Tutor page displays both a 'Text Chat' tab and a 'Voice Chat' tab; switching between them is seamless.",
+        "Clicking the microphone button activates the browser's SpeechRecognition API and shows a 'Listening…' indicator with a visual animation.",
+        "After the student finishes speaking, the recognized text appears in the transcript and the status changes to 'Thinking…'.",
+        "The AI generates a biology tutor response using the existing bioAI logic and reads it aloud via speechSynthesis, with status showing 'Speaking…' and an animated waveform.",
+        "If the student speaks while the AI is talking, the AI stops speaking immediately, recognition restarts, and the new student input is processed.",
+        "Each conversation turn (student speech → AI response) is appended to a scrollable transcript panel.",
+        "A 'Stop' button ends the voice session and resets the UI to idle state.",
+        "If the browser does not support SpeechRecognition or speechSynthesis, a clear unsupported-browser message is shown instead of the voice UI.",
+        "Voice chat respects the existing trial/subscription gate — if the trial has expired, accessing voice chat shows the TrialExpiredModal."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useVoiceChat.ts",
+          "operation": "create",
+          "description": "Create a custom React hook that manages voice chat state and orchestrates the Web Speech API lifecycle. The hook encapsulates SpeechRecognition initialization and configuration (continuous mode, interim results), speechSynthesis management with interruption handling, conversation state tracking (listening/thinking/speaking/idle), transcript accumulation, and error handling for unsupported browsers. Export functions to start/stop recognition, speak AI responses with cancellation, and reset the session. This hook provides the core voice interaction logic that the AITutor component will consume."
+        },
+        {
+          "path": "frontend/src/components/VoiceChatInterface.tsx",
+          "operation": "create",
+          "description": "Create a React component that renders the voice chat UI including a large microphone button with visual state changes (idle/listening/speaking), an animated waveform or pulsing indicator during audio activity, a status badge displaying current state ('Listening…'/'Thinking…'/'Speaking…'), a scrollable transcript panel showing conversation turns with timestamps, and a stop button to end the session. Accept props for voice chat state (from useVoiceChat hook), callbacks for start/stop actions, transcript data, and current status. Handle browser compatibility by displaying a fallback message when SpeechRecognition or speechSynthesis are unavailable. Use Tailwind CSS for styling consistent with the existing app design system (teal/amber palette)."
+        },
+        {
+          "path": "frontend/src/pages/AITutor.tsx",
+          "operation": "modify",
+          "description": "Modify the AI Tutor page to add a tabbed interface with 'Text Chat' and 'Voice Chat' tabs using shadcn/ui Tabs component. Import and integrate the VoiceChatInterface component and useVoiceChat hook. Wire the voice chat lifecycle: when a user utterance is recognized, pass it to the bioAI.generateResponse function (from frontend/src/lib/bioAI.ts), then use speechSynthesis to read the response aloud while updating the transcript. Implement interruption logic: if recognition detects new speech while synthesis is active, cancel synthesis immediately and process the new input. Ensure the trial/subscription gate applies to voice chat by checking trial status and rendering TrialExpiredModal when necessary. Persist voice conversation turns to backend using the addConversationTurn mutation hook (from frontend/src/hooks/useQueries.ts) so voice interactions appear in the conversation history. Maintain existing text chat functionality unchanged."
+        }
+      ]
+    }
+  ]
+}

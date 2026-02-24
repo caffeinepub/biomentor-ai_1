@@ -1,0 +1,27 @@
+{
+  "kind": "spec_vs_diff_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-24T14:06:06.705Z",
+  "summary": "The diff implements the Live Voice Chat feature (REQ-11) by adding a useVoiceChat hook, VoiceChatInterface component, modifying AITutor.tsx to add tabs, and adding CSS keyframe animations. Most acceptance criteria are met. One AC regarding the trial/subscription gate for voice chat access is not clearly evidenced in the diff.",
+  "missing_requirements": [
+    {
+      "id": "REQ-11",
+      "requirement": "Voice chat respects the existing trial/subscription gate — if the trial has expired, accessing voice chat shows the TrialExpiredModal.",
+      "reason": "The diff shows AITutor.tsx is modified to include Voice Chat tab via VoiceChatInterface, but there is no evidence in the truncated AITutor.tsx diff or VoiceChatInterface.tsx that the trial/subscription gate check is applied specifically to the Voice Chat tab. The file summary for AITutor.tsx does not mention trial gating for the voice tab, only that voice turns are persisted. The TrialExpiredModal import or conditional rendering for the voice tab is not visible in the diff.",
+      "evidence": [
+        "frontend/src/pages/AITutor.tsx",
+        "frontend/src/components/VoiceChatInterface.tsx"
+      ]
+    }
+  ],
+  "hallucinated_features": [],
+  "confidence": 0.72,
+  "changed_files": [
+    "frontend-file-summaries.txt",
+    "frontend/src/components/VoiceChatInterface.tsx",
+    "frontend/src/hooks/useVoiceChat.ts",
+    "frontend/src/index.css",
+    "frontend/src/pages/AITutor.tsx",
+    "project_state.json"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "frontend/src/App.tsx": "Main app with TanStack Router, all route definitions, and auth/trial guard logic — fixes the hooks-in-non-component error by extracting `IndexPage` as a proper named React component.",
+  "frontend/src/pages/DocumentUpload.tsx": "Document upload page with drag-and-drop, progress tracking, and AI analysis display — updated all `flex-shrink-0` to `shrink-0`.",
+  "frontend/src/pages/NotesGenerator.tsx": "Notes generator with topic input, quick-select chips, and five tabbed note formats with copy buttons — updated `flex-shrink-0` to `shrink-0`.",
+  "frontend/src/pages/ExamQuestions.tsx": "Exam question generator with topic/type selectors and toggleable model answers — updated all `flex-shrink-0` to `shrink-0`.",
+  "frontend/src/pages/Mentorship.tsx": "Mentorship mode with four guidance categories and rich content rendering — updated all `flex-shrink-0` to `shrink-0`.",
+  "frontend/src/pages/AdaptiveLearning.tsx": "Adaptive learning page with weak topic tracking, practice questions, difficulty progression, and revision plan — updated all `flex-shrink-0` to `shrink-0`.",
+  "frontend/src/components/Layout.tsx": "Persistent sidebar layout with navigation, header, and footer — updated all `flex-shrink-0` to `shrink-0` for Tailwind v3 compliance.",
+  "frontend/src/components/TrialExpiredModal.tsx": "Modal shown when the 1-day trial expires, prompting upgrade — updated `flex-shrink-0` to `shrink-0`.",
+  "frontend/src/pages/AITutor.tsx": "AI Biology Tutor page refactored with shadcn Tabs to offer both a \"Text Chat\" tab (original chat UI, unchanged) and a \"Voice Chat\" tab (live voice conversation via VoiceChatInterface + useVoiceChat), with voice turns persisted to the backend via addConversationTurn.",
+  "frontend/src/pages/Dashboard.tsx": "Student dashboard with trial status, performance metrics, quick stats, and feature navigation cards — updated all `flex-shrink-0` to `shrink-0`.",
+  "frontend/src/hooks/useVoiceChat.ts": "Custom React hook managing the Web Speech API lifecycle for voice chat — defines local TypeScript interfaces for SpeechRecognition/Event types (avoiding missing global types), uses a ref-based forward-declaration pattern to avoid circular dependencies, and handles recognition, synthesis, transcript accumulation, interruption, and session start/stop.",
+  "frontend/src/components/VoiceChatInterface.tsx": "Voice chat UI component with animated microphone button, waveform bars (fixed duplicate `animationDelay` by using conditional `style` objects), status badge, scrollable transcript, interim speech preview, thinking indicator, and browser-unsupported fallback.",
+  "frontend/src/index.css": "Global styles with OKLCH color tokens for light/dark modes, Inter/Sora fonts, chat bubble utilities, card shadow, and added voiceBar keyframe animation for the waveform visualization."
+}
