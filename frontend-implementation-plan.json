@@ -1,37 +1,42 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Add Live AI Voice Chat Mode to AI Tutor",
+  "title": "Fix broken Live Voice Chat feature",
   "requirements": [
     {
-      "id": "REQ-11",
-      "summary": "Add a Live Voice Chat tab to the AI Tutor page enabling real-time spoken conversation using browser Web Speech API (SpeechRecognition + speechSynthesis), with visual feedback, interruption support, and transcript display",
+      "id": "REQ-12",
+      "summary": "Audit and fix the Live Voice Chat feature to ensure proper rendering, speech recognition, AI response handling, text-to-speech playback, and real-time transcript updates without errors",
       "acceptanceCriteria": [
-        "The AI Tutor page displays both a 'Text Chat' tab and a 'Voice Chat' tab; switching between them is seamless.",
-        "Clicking the microphone button activates the browser's SpeechRecognition API and shows a 'Listening…' indicator with a visual animation.",
-        "After the student finishes speaking, the recognized text appears in the transcript and the status changes to 'Thinking…'.",
-        "The AI generates a biology tutor response using the existing bioAI logic and reads it aloud via speechSynthesis, with status showing 'Speaking…' and an animated waveform.",
-        "If the student speaks while the AI is talking, the AI stops speaking immediately, recognition restarts, and the new student input is processed.",
-        "Each conversation turn (student speech → AI response) is appended to a scrollable transcript panel.",
-        "A 'Stop' button ends the voice session and resets the UI to idle state.",
-        "If the browser does not support SpeechRecognition or speechSynthesis, a clear unsupported-browser message is shown instead of the voice UI.",
-        "Voice chat respects the existing trial/subscription gate — if the trial has expired, accessing voice chat shows the TrialExpiredModal."
+        "The Voice Chat tab is visible and clickable on the AI Tutor page without any runtime errors.",
+        "Clicking the microphone button activates speech recognition and the status indicator shows 'Listening…'.",
+        "After the student finishes speaking, the status changes to 'Thinking…' and the recognized text is sent to the bioAI logic.",
+        "The AI response is spoken aloud via speechSynthesis and the status indicator shows 'Speaking…'.",
+        "The transcript panel shows each student and AI turn in real time.",
+        "If the student speaks while the AI is talking, speechSynthesis stops immediately and recognition restarts.",
+        "The waveform or pulsing animation is visible during both listening and speaking states.",
+        "No unhandled JavaScript exceptions are thrown during a full voice interaction cycle.",
+        "The feature degrades gracefully in browsers that do not support the Web Speech API, showing an informative message."
       ],
       "file_operations": [
         {
           "path": "frontend/src/hooks/useVoiceChat.ts",
-          "operation": "create",
-          "description": "Create a custom React hook that manages voice chat state and orchestrates the Web Speech API lifecycle. The hook encapsulates SpeechRecognition initialization and configuration (continuous mode, interim results), speechSynthesis management with interruption handling, conversation state tracking (listening/thinking/speaking/idle), transcript accumulation, and error handling for unsupported browsers. Export functions to start/stop recognition, speak AI responses with cancellation, and reset the session. This hook provides the core voice interaction logic that the AITutor component will consume."
+          "operation": "modify",
+          "description": "Fix the useVoiceChat hook to properly manage Web Speech API lifecycle: ensure SpeechRecognition starts/stops correctly, handle state transitions (idle → listening → thinking → speaking → idle) without race conditions, implement proper cleanup of recognition and synthesis instances, add error boundary for browsers lacking Web Speech API support, and ensure speechSynthesis.cancel() is called before starting new recognition when the user interrupts the AI."
         },
         {
           "path": "frontend/src/components/VoiceChatInterface.tsx",
-          "operation": "create",
-          "description": "Create a React component that renders the voice chat UI including a large microphone button with visual state changes (idle/listening/speaking), an animated waveform or pulsing indicator during audio activity, a status badge displaying current state ('Listening…'/'Thinking…'/'Speaking…'), a scrollable transcript panel showing conversation turns with timestamps, and a stop button to end the session. Accept props for voice chat state (from useVoiceChat hook), callbacks for start/stop actions, transcript data, and current status. Handle browser compatibility by displaying a fallback message when SpeechRecognition or speechSynthesis are unavailable. Use Tailwind CSS for styling consistent with the existing app design system (teal/amber palette)."
+          "operation": "modify",
+          "description": "Fix the VoiceChatInterface component to properly render the microphone button, status badge, waveform animation, and transcript panel. Ensure the microphone button correctly toggles listening state via the useVoiceChat hook, the status badge displays the current state ('Listening…', 'Thinking…', 'Speaking…'), the waveform or pulsing animation is visible during listening and speaking states, the transcript scroll area auto-scrolls to the latest turn, and a fallback message is shown if the Web Speech API is unavailable."
         },
         {
           "path": "frontend/src/pages/AITutor.tsx",
           "operation": "modify",
-          "description": "Modify the AI Tutor page to add a tabbed interface with 'Text Chat' and 'Voice Chat' tabs using shadcn/ui Tabs component. Import and integrate the VoiceChatInterface component and useVoiceChat hook. Wire the voice chat lifecycle: when a user utterance is recognized, pass it to the bioAI.generateResponse function (from frontend/src/lib/bioAI.ts), then use speechSynthesis to read the response aloud while updating the transcript. Implement interruption logic: if recognition detects new speech while synthesis is active, cancel synthesis immediately and process the new input. Ensure the trial/subscription gate applies to voice chat by checking trial status and rendering TrialExpiredModal when necessary. Persist voice conversation turns to backend using the addConversationTurn mutation hook (from frontend/src/hooks/useQueries.ts) so voice interactions appear in the conversation history. Maintain existing text chat functionality unchanged."
+          "description": "Fix the Voice Chat tab rendering in AITutor.tsx to ensure the tab is properly wired into the tabs component without runtime errors. Verify the VoiceChatInterface component is correctly imported and rendered when the Voice Chat tab is active. Ensure proper prop passing between AITutor and VoiceChatInterface, including any callbacks for saving conversation turns to the backend via addConversationTurn."
+        },
+        {
+          "path": "frontend/src/lib/bioAI.ts",
+          "operation": "modify",
+          "description": "Review and fix the bioAI.ts client-side AI response logic to ensure it correctly handles voice chat queries. Verify the function returns appropriate biology tutoring responses based on keyword matching without throwing exceptions. Ensure the response format is compatible with text-to-speech synthesis (avoiding special characters or markup that might cause speechSynthesis issues)."
         }
       ]
     }

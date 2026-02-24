@@ -1,336 +1,255 @@
-import React, { useRef, useEffect } from 'react';
-import { Mic, MicOff, Square, Volume2, Brain, User, Dna, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Mic, MicOff, Square, Volume2, Loader2, AlertCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import type { VoiceChatStatus, VoiceTranscriptTurn } from '../hooks/useVoiceChat';
-import { checkVoiceChatSupport } from '../hooks/useVoiceChat';
+import { useVoiceChat, VoiceChatState, TranscriptTurn } from '../hooks/useVoiceChat';
 
 interface VoiceChatInterfaceProps {
-  status: VoiceChatStatus;
-  transcript: VoiceTranscriptTurn[];
-  isActive: boolean;
-  error: string | null;
-  interimText: string;
-  onStart: () => void;
-  onStop: () => void;
+  onUserSpeech: (text: string) => Promise<string>;
+  onTurnComplete?: (question: string, response: string) => void;
 }
 
-function StatusBadge({ status }: { status: VoiceChatStatus }) {
-  const config: Record<VoiceChatStatus, { label: string; className: string }> = {
-    idle: { label: 'Ready', className: 'bg-muted text-muted-foreground' },
-    listening: {
-      label: 'Listening…',
-      className: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
-    },
-    thinking: {
-      label: 'Thinking…',
-      className: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30',
-    },
-    speaking: { label: 'Speaking…', className: 'bg-primary/20 text-primary border-primary/30' },
-  };
-  const { label, className } = config[status];
+function WaveformBars({ active }: { active: boolean }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${className}`}
-    >
-      {status === 'listening' && (
-        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-      )}
-      {status === 'thinking' && (
-        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-      )}
-      {status === 'speaking' && (
-        <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-      )}
-      {status === 'idle' && (
-        <span className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-      )}
-      {label}
-    </span>
-  );
-}
-
-function WaveformAnimation({ active }: { active: boolean }) {
-  const bars = [3, 5, 8, 6, 4, 7, 5, 3, 6, 4, 8, 5, 3];
-  return (
-    <div className="flex items-center justify-center gap-0.5 h-10">
-      {bars.map((height, i) => (
+    <div className="flex items-center gap-[3px] h-8">
+      {[1, 2, 3, 4, 5, 6, 7].map((i) => (
         <div
           key={i}
-          className={`w-1 rounded-full transition-all ${
-            active ? 'bg-primary' : 'bg-muted-foreground/30'
+          className={`w-1 rounded-full transition-all duration-300 ${
+            active ? 'bg-primary animate-voiceBar' : 'bg-muted h-1'
           }`}
-          style={
-            active
-              ? {
-                  height: `${height * 3}px`,
-                  animation: `voiceBar 0.8s ease-in-out ${i * 60}ms infinite alternate`,
-                }
-              : { height: '4px' }
-          }
+          style={active ? {
+            animationDelay: `${(i - 1) * 0.1}s`,
+            height: `${Math.max(8, Math.min(32, 8 + ((i * 7) % 24)))}px`,
+          } : undefined}
         />
       ))}
     </div>
   );
 }
 
-function MicButton({
-  status,
-  isActive,
-  onStart,
-  onStop,
-}: {
-  status: VoiceChatStatus;
-  isActive: boolean;
-  onStart: () => void;
-  onStop: () => void;
-}) {
-  const isListening = status === 'listening';
-  const isSpeaking = status === 'speaking';
-  const isThinking = status === 'thinking';
-
+function StatusBadge({ state }: { state: VoiceChatState }) {
+  const config: Record<VoiceChatState, { label: string; className: string }> = {
+    idle: { label: 'Ready', className: 'bg-muted text-muted-foreground' },
+    listening: { label: 'Listening…', className: 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30' },
+    thinking: { label: 'Thinking…', className: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30' },
+    speaking: { label: 'Speaking…', className: 'bg-primary/20 text-primary border-primary/30' },
+  };
+  const { label, className } = config[state];
   return (
-    <div className="relative flex items-center justify-center">
-      {isListening && (
-        <>
-          <span className="absolute w-28 h-28 rounded-full bg-emerald-500/10 animate-ping" />
-          <span className="absolute w-24 h-24 rounded-full bg-emerald-500/15 animate-pulse" />
-        </>
-      )}
-      {isSpeaking && (
-        <>
-          <span className="absolute w-28 h-28 rounded-full bg-primary/10 animate-ping" />
-          <span className="absolute w-24 h-24 rounded-full bg-primary/15 animate-pulse" />
-        </>
-      )}
-
-      <button
-        onClick={isActive ? onStop : onStart}
-        className={`
-          relative z-10 w-20 h-20 rounded-full flex items-center justify-center
-          transition-all duration-300 shadow-lg active:scale-95
-          ${
-            isActive
-              ? isListening
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/30'
-                : isSpeaking
-                ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30'
-                : isThinking
-                ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/30'
-                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-              : 'bg-card border-2 border-border hover:border-primary/50 hover:bg-primary/5 text-foreground'
-          }
-        `}
-        aria-label={isActive ? 'Stop voice chat' : 'Start voice chat'}
-      >
-        {isActive ? (
-          isThinking ? (
-            <Brain className="h-8 w-8 animate-pulse" />
-          ) : isSpeaking ? (
-            <Volume2 className="h-8 w-8" />
-          ) : (
-            <Mic className="h-8 w-8" />
-          )
-        ) : (
-          <Mic className="h-8 w-8" />
-        )}
-      </button>
-    </div>
+    <Badge variant="outline" className={`text-xs font-medium px-3 py-1 ${className}`}>
+      {label}
+    </Badge>
   );
 }
 
-function TranscriptMessage({ turn }: { turn: VoiceTranscriptTurn }) {
-  const time = turn.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const isUser = turn.speaker === 'user';
-
+function TranscriptMessage({ turn }: { turn: TranscriptTurn }) {
+  const isUser = turn.role === 'user';
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      <div
-        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1 ${
-          isUser ? 'bg-accent' : 'bg-primary/10'
-        }`}
-      >
-        {isUser ? (
-          <User className="h-3.5 w-3.5 text-accent-foreground" />
-        ) : (
-          <Dna className="h-3.5 w-3.5 text-primary" />
-        )}
+      <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+        isUser ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'
+      }`}>
+        {isUser ? 'You' : 'AI'}
       </div>
-      <div className={`max-w-[80%] ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
-        <div
-          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-            isUser
-              ? 'bg-accent text-accent-foreground rounded-tr-sm'
-              : 'bg-muted text-foreground rounded-tl-sm'
-          }`}
-        >
-          {turn.text}
-        </div>
-        <span className="text-xs text-muted-foreground mt-1 px-1">{time}</span>
+      <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+        isUser
+          ? 'bg-primary text-primary-foreground rounded-tr-sm'
+          : 'bg-muted text-foreground rounded-tl-sm'
+      }`}>
+        {turn.text}
       </div>
     </div>
   );
 }
 
-export default function VoiceChatInterface({
-  status,
-  transcript,
-  isActive,
-  error,
-  interimText,
-  onStart,
-  onStop,
-}: VoiceChatInterfaceProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const support = checkVoiceChatSupport();
+export default function VoiceChatInterface({ onUserSpeech, onTurnComplete }: VoiceChatInterfaceProps) {
+  const { state, transcript, interimText, isSupported, startSession, stopSession, interruptAI, clearTranscript } = useVoiceChat({
+    onUserSpeech,
+    onTurnComplete,
+  });
 
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const isActive = state !== 'idle' || transcript.length > 0;
+  const sessionRunning = state !== 'idle';
+
+  // Auto-scroll to bottom when transcript updates
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [transcript.length, interimText]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [transcript, interimText]);
 
-  // Browser not supported
-  if (!support.recognition || !support.synthesis) {
+  if (!isSupported) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-6 p-8 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
-          <MicOff className="h-8 w-8 text-destructive" />
+      <div className="flex flex-col items-center justify-center h-64 gap-4 text-center p-6">
+        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertCircle className="w-8 h-8 text-destructive" />
         </div>
         <div>
-          <h3 className="font-heading text-lg font-semibold mb-2">Voice Chat Not Supported</h3>
-          <p className="text-muted-foreground text-sm max-w-sm">
-            Your browser doesn't support the Web Speech API required for voice chat. Please use{' '}
-            <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> for the best
-            experience.
+          <h3 className="font-semibold text-foreground mb-1">Voice Chat Not Supported</h3>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Your browser doesn't support the Web Speech API. Please try Chrome, Edge, or Safari for voice chat functionality.
           </p>
-        </div>
-        <div className="flex gap-2 flex-wrap justify-center">
-          <Badge variant="outline">Chrome ✓</Badge>
-          <Badge variant="outline">Edge ✓</Badge>
-          <Badge variant="secondary">Firefox ✗</Badge>
-          <Badge variant="secondary">Safari (limited)</Badge>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Error */}
-      {error && (
-        <div className="px-4 pt-3">
-          <Alert variant="destructive" className="py-2">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription className="text-xs">{error}</AlertDescription>
-          </Alert>
+    <div className="flex flex-col h-full gap-4">
+      {/* Status bar */}
+      <div className="flex items-center justify-between px-1">
+        <StatusBadge state={state} />
+        <div className="flex items-center gap-2">
+          {(state === 'listening' || state === 'speaking') && (
+            <WaveformBars active={true} />
+          )}
+          {transcript.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={clearTranscript}
+              title="Clear transcript"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
         </div>
-      )}
-
-      {/* Transcript area */}
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full" ref={scrollRef as React.RefObject<HTMLDivElement>}>
-          <div className="p-4 space-y-4">
-            {transcript.length === 0 && !isActive && (
-              <div className="text-center py-8">
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                  <Mic className="h-7 w-7 text-primary" />
-                </div>
-                <h3 className="font-heading text-base font-semibold mb-1">
-                  Live Voice Conversation
-                </h3>
-                <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                  Tap the microphone to start a real-time voice conversation with your AI biology
-                  tutor.
-                </p>
-              </div>
-            )}
-
-            {transcript.map((turn) => (
-              <TranscriptMessage key={turn.id} turn={turn} />
-            ))}
-
-            {/* Interim text while listening */}
-            {isActive && interimText && (
-              <div className="flex gap-3 flex-row-reverse opacity-60">
-                <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center shrink-0 mt-1">
-                  <User className="h-3.5 w-3.5 text-accent-foreground" />
-                </div>
-                <div className="max-w-[80%] flex flex-col items-end">
-                  <div className="px-3 py-2 rounded-2xl rounded-tr-sm text-sm bg-accent/50 text-accent-foreground italic">
-                    {interimText}…
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Thinking indicator */}
-            {status === 'thinking' && (
-              <div className="flex gap-3">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
-                  <Dna className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="px-3 py-2 rounded-2xl rounded-tl-sm bg-muted">
-                  <div className="flex gap-1 items-center">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce"
-                      style={{ animationDelay: '0ms' }}
-                    />
-                    <span
-                      className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce"
-                      style={{ animationDelay: '150ms' }}
-                    />
-                    <span
-                      className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce"
-                      style={{ animationDelay: '300ms' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
       </div>
 
+      {/* Transcript area */}
+      <ScrollArea className="flex-1 min-h-0 rounded-xl border border-border bg-background/50">
+        <div className="p-4 space-y-4">
+          {transcript.length === 0 && state === 'idle' && (
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Mic className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Start a voice conversation</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Press the microphone button below to begin talking with your AI biology tutor.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {transcript.map((turn) => (
+            <TranscriptMessage key={turn.id} turn={turn} />
+          ))}
+
+          {/* Interim speech preview */}
+          {interimText && (
+            <div className="flex gap-3 flex-row-reverse">
+              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-primary/50 text-primary-foreground">
+                You
+              </div>
+              <div className="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-primary/20 text-foreground rounded-tr-sm italic opacity-70">
+                {interimText}…
+              </div>
+            </div>
+          )}
+
+          {/* Thinking indicator */}
+          {state === 'thinking' && (
+            <div className="flex gap-3">
+              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-secondary text-secondary-foreground">
+                AI
+              </div>
+              <div className="rounded-2xl px-4 py-2.5 bg-muted rounded-tl-sm flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Thinking…</span>
+              </div>
+            </div>
+          )}
+
+          {/* Speaking indicator with waveform */}
+          {state === 'speaking' && (
+            <div className="flex gap-3">
+              <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold bg-secondary text-secondary-foreground">
+                AI
+              </div>
+              <div className="rounded-2xl px-4 py-2.5 bg-muted rounded-tl-sm flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-primary" />
+                <WaveformBars active={true} />
+              </div>
+            </div>
+          )}
+
+          {/* Scroll anchor */}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+
       {/* Controls */}
-      <div className="border-t border-border p-6 flex flex-col items-center gap-4 bg-card/50">
-        {/* Waveform */}
-        <WaveformAnimation active={status === 'listening' || status === 'speaking'} />
-
-        {/* Status badge */}
-        <StatusBadge status={status} />
-
-        {/* Mic button */}
-        <MicButton status={status} isActive={isActive} onStart={onStart} onStop={onStop} />
-
-        {/* Hint text */}
-        <p className="text-xs text-muted-foreground text-center max-w-xs">
-          {!isActive
-            ? 'Tap the microphone to begin. Speak naturally — the AI will respond in real time.'
-            : status === 'listening'
-            ? 'Listening… speak your biology question clearly.'
-            : status === 'thinking'
-            ? 'Processing your question…'
-            : status === 'speaking'
-            ? 'AI is responding — you can interrupt by speaking.'
-            : ''}
-        </p>
-
-        {/* Stop button when active */}
-        {isActive && (
+      <div className="flex items-center justify-center gap-4 py-2">
+        {/* Interrupt button - only when AI is speaking */}
+        {state === 'speaking' && (
           <Button
             variant="outline"
             size="sm"
-            onClick={onStop}
-            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={interruptAI}
+            className="gap-2 text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950"
           >
-            <Square className="h-3.5 w-3.5 fill-current" />
-            End Session
+            <MicOff className="w-4 h-4" />
+            Interrupt
+          </Button>
+        )}
+
+        {/* Main mic button */}
+        <button
+          onClick={sessionRunning ? stopSession : startSession}
+          disabled={state === 'thinking'}
+          className={`
+            relative w-20 h-20 rounded-full flex items-center justify-center
+            transition-all duration-300 shadow-lg
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${sessionRunning
+              ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground scale-110'
+              : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+            }
+            ${state === 'listening' ? 'ring-4 ring-primary/30 ring-offset-2 ring-offset-background' : ''}
+          `}
+          aria-label={sessionRunning ? 'Stop voice session' : 'Start voice session'}
+        >
+          {state === 'thinking' ? (
+            <Loader2 className="w-8 h-8 animate-spin" />
+          ) : sessionRunning ? (
+            <Square className="w-8 h-8 fill-current" />
+          ) : (
+            <Mic className="w-8 h-8" />
+          )}
+
+          {/* Pulse ring when listening */}
+          {state === 'listening' && (
+            <>
+              <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+              <span className="absolute inset-[-8px] rounded-full border-2 border-primary/30 animate-pulse" />
+            </>
+          )}
+        </button>
+
+        {/* Stop button when active */}
+        {sessionRunning && state !== 'speaking' && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={stopSession}
+            className="gap-2"
+          >
+            <Square className="w-4 h-4 fill-current" />
+            Stop
           </Button>
         )}
       </div>
+
+      <p className="text-center text-xs text-muted-foreground pb-1">
+        {state === 'idle' && 'Press the microphone to start a voice session'}
+        {state === 'listening' && 'Listening — speak your question'}
+        {state === 'thinking' && 'Processing your question…'}
+        {state === 'speaking' && 'AI is speaking — press Interrupt to take over'}
+      </p>
     </div>
   );
 }

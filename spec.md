@@ -1,19 +1,15 @@
 # Specification
 
 ## Summary
-**Goal:** Add a Live Voice Chat mode to the existing AI Tutor page, enabling real-time spoken conversation between the student and the AI biology tutor using browser-native Web Speech APIs.
+**Goal:** Fix the broken Live Voice Chat feature on the AI Tutor page so it works end-to-end using the Web Speech API.
 
 **Planned changes:**
-- Add a "Text Chat" tab and a "Voice Chat" tab to the AI Tutor page, with seamless switching between them
-- Implement a large microphone button to start/stop listening using the browser's SpeechRecognition API
-- Display a status indicator cycling through "Listening…", "Thinking…", and "Speaking…" states
-- Show a pulsing animation or visual audio waveform during listening and AI speaking states
-- Pass recognized speech text to the existing `bioAI` client-side logic to generate biology responses
-- Read AI responses aloud using the browser's speechSynthesis API
-- Support interruption: if the student speaks while the AI is talking, synthesis stops and recognition restarts immediately
-- Display a scrollable transcript panel showing each conversation turn (student speech and AI response)
-- Add a "Stop" button to end the voice session and reset the UI to idle
-- Show an unsupported-browser message if SpeechRecognition or speechSynthesis is not available
-- Enforce the existing trial/subscription gate for voice chat access (show TrialExpiredModal if trial has expired)
+- Audit and fix `AITutor.tsx` so the Voice Chat tab renders correctly without runtime errors
+- Audit and fix `VoiceChatInterface.tsx` to display the microphone button, waveform/pulsing animation, status indicator, and transcript panel
+- Fix `useVoiceChat.ts` hook to correctly manage state transitions between "Listening", "Thinking", and "Speaking"
+- Ensure the microphone button starts/stops `SpeechRecognition` and recognized speech is passed to `bioAI.ts`
+- Ensure the AI response is read aloud via `speechSynthesis` and the transcript panel updates in real time
+- Handle interruption: if the student speaks while AI is talking, stop `speechSynthesis` and restart recognition
+- Add graceful degradation message for browsers that do not support the Web Speech API
 
-**User-visible outcome:** Students can switch to a Voice Chat tab on the AI Tutor page and have a live, spoken back-and-forth conversation with the AI biology tutor, with real-time transcript, animated feedback, and support for interrupting the AI mid-response.
+**User-visible outcome:** Students can open the Voice Chat tab on the AI Tutor page, speak a question, see the status cycle through Listening → Thinking → Speaking, hear the AI response read aloud, and view the full conversation transcript in real time without any errors.

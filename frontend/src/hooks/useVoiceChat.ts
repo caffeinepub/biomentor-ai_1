@@ -1,12 +1,47 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-export type VoiceChatStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
+export type VoiceChatState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
-export interface VoiceTranscriptTurn {
-  id: string;
-  speaker: 'user' | 'ai';
-  text: string;
-  timestamp: Date;
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+  message: string;
+}
+
+interface ISpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  onstart: (() => void) | null;
 }
 
 interface UseVoiceChatOptions {
@@ -14,239 +49,158 @@ interface UseVoiceChatOptions {
   onTurnComplete?: (question: string, response: string) => void;
 }
 
-// Minimal interfaces for Web Speech API (not always in TS lib)
-interface ISpeechRecognitionResult {
-  readonly isFinal: boolean;
-  readonly length: number;
-  item(index: number): { transcript: string; confidence: number };
-  [index: number]: { transcript: string; confidence: number };
+export interface TranscriptTurn {
+  role: 'user' | 'ai';
+  text: string;
+  id: string;
 }
 
-interface ISpeechRecognitionResultList {
-  readonly length: number;
-  item(index: number): ISpeechRecognitionResult;
-  [index: number]: ISpeechRecognitionResult;
-}
-
-interface ISpeechRecognitionEvent extends Event {
-  readonly resultIndex: number;
-  readonly results: ISpeechRecognitionResultList;
-}
-
-interface ISpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-  readonly message: string;
-}
-
-interface ISpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: ((this: ISpeechRecognition, ev: Event) => void) | null;
-  onend: ((this: ISpeechRecognition, ev: Event) => void) | null;
-  onresult: ((this: ISpeechRecognition, ev: ISpeechRecognitionEvent) => void) | null;
-  onerror: ((this: ISpeechRecognition, ev: ISpeechRecognitionErrorEvent) => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-interface ISpeechRecognitionConstructor {
-  new (): ISpeechRecognition;
-}
-
-// Check browser support
-export function checkVoiceChatSupport(): { recognition: boolean; synthesis: boolean } {
-  const recognition =
-    typeof window !== 'undefined' &&
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
-  const synthesis =
-    typeof window !== 'undefined' && 'speechSynthesis' in window;
-  return { recognition, synthesis };
-}
-
-function getSpeechRecognitionConstructor(): ISpeechRecognitionConstructor | null {
-  if (typeof window === 'undefined') return null;
+// Check Web Speech API support
+const getSpeechRecognitionClass = (): (new () => ISpeechRecognition) | null => {
   const w = window as unknown as Record<string, unknown>;
-  if (typeof w['SpeechRecognition'] === 'function') {
-    return w['SpeechRecognition'] as ISpeechRecognitionConstructor;
-  }
-  if (typeof w['webkitSpeechRecognition'] === 'function') {
-    return w['webkitSpeechRecognition'] as ISpeechRecognitionConstructor;
-  }
-  return null;
-}
+  return (w['SpeechRecognition'] as (new () => ISpeechRecognition)) ||
+    (w['webkitSpeechRecognition'] as (new () => ISpeechRecognition)) ||
+    null;
+};
 
 export function useVoiceChat({ onUserSpeech, onTurnComplete }: UseVoiceChatOptions) {
-  const [status, setStatus] = useState<VoiceChatStatus>('idle');
-  const [transcript, setTranscript] = useState<VoiceTranscriptTurn[]>([]);
-  const [isActive, setIsActive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<VoiceChatState>('idle');
+  const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [interimText, setInterimText] = useState('');
+  const [isSupported] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!getSpeechRecognitionClass() && 'speechSynthesis' in window;
+  });
 
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
-  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const isProcessingRef = useRef(false);
-  const isActiveRef = useRef(false);
-  const interimTextRef = useRef('');
+  const stateRef = useRef<VoiceChatState>('idle');
+  const isSessionActiveRef = useRef(false);
+  const onUserSpeechRef = useRef(onUserSpeech);
+  const onTurnCompleteRef = useRef(onTurnComplete);
+  const shouldRestartRef = useRef(false);
 
-  // Keep refs in sync
+  // Keep refs in sync with latest callbacks
   useEffect(() => {
-    isActiveRef.current = isActive;
-  }, [isActive]);
+    onUserSpeechRef.current = onUserSpeech;
+  }, [onUserSpeech]);
 
   useEffect(() => {
-    interimTextRef.current = interimText;
-  }, [interimText]);
+    onTurnCompleteRef.current = onTurnComplete;
+  }, [onTurnComplete]);
 
-  const stopSpeaking = useCallback(() => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-    synthRef.current = null;
+  const updateState = useCallback((newState: VoiceChatState) => {
+    stateRef.current = newState;
+    setState(newState);
   }, []);
 
-  const stopRecognition = useCallback(() => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // ignore
+  const speakText = useCallback((text: string, onDone?: () => void) => {
+    if (!('speechSynthesis' in window)) {
+      onDone?.();
+      return;
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    // Clean text for TTS - remove markdown, tables, special chars
+    const cleaned = text
+      .replace(/\|[^\n]*\|/g, '') // remove table rows
+      .replace(/[-]{3,}/g, '') // remove horizontal rules
+      .replace(/#{1,6}\s/g, '') // remove headings
+      .replace(/\*\*(.*?)\*\*/g, '$1') // remove bold
+      .replace(/\*(.*?)\*/g, '$1') // remove italic
+      .replace(/`(.*?)`/g, '$1') // remove code
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // remove links
+      .replace(/[•→←↑↓]/g, '') // remove special chars
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleaned) {
+      onDone?.();
+      return;
+    }
+
+    updateState('speaking');
+
+    const utterance = new SpeechSynthesisUtterance(cleaned);
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Try to use a natural voice
+    const setVoiceAndSpeak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        const preferred = voices.find(v =>
+          v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha'))
+        ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+        if (preferred) utterance.voice = preferred;
       }
-      recognitionRef.current = null;
-    }
-  }, []);
 
-  const speakText = useCallback(
-    (text: string): Promise<void> => {
-      return new Promise((resolve) => {
-        stopSpeaking();
-
-        // Clean text for speech (remove markdown)
-        const cleanText = text
-          .replace(/\*\*(.*?)\*\*/g, '$1')
-          .replace(/\*(.*?)\*/g, '$1')
-          .replace(/#{1,6}\s/g, '')
-          .replace(/`(.*?)`/g, '$1')
-          .replace(/\n+/g, '. ')
-          .replace(/\|.*?\|/g, '')
-          .trim();
-
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-
-        // Try to use a natural voice
-        const voices = window.speechSynthesis.getVoices();
-        const preferredVoice =
-          voices.find(
-            (v) =>
-              v.lang.startsWith('en') &&
-              (v.name.includes('Google') ||
-                v.name.includes('Natural') ||
-                v.name.includes('Premium'))
-          ) || voices.find((v) => v.lang.startsWith('en'));
-        if (preferredVoice) utterance.voice = preferredVoice;
-
-        synthRef.current = utterance;
-
-        utterance.onend = () => {
-          synthRef.current = null;
-          resolve();
-        };
-
-        utterance.onerror = () => {
-          synthRef.current = null;
-          resolve();
-        };
-
-        window.speechSynthesis.speak(utterance);
-      });
-    },
-    [stopSpeaking]
-  );
-
-  // Forward-declare startRecognition so processUserSpeech can reference it
-  const startRecognitionRef = useRef<() => void>(() => {});
-
-  const processUserSpeech = useCallback(
-    async (text: string) => {
-      if (isProcessingRef.current) return;
-      isProcessingRef.current = true;
-
-      stopSpeaking();
-
-      const userTurn: VoiceTranscriptTurn = {
-        id: `user-${Date.now()}`,
-        speaker: 'user',
-        text,
-        timestamp: new Date(),
+      utterance.onend = () => {
+        if (isSessionActiveRef.current) {
+          onDone?.();
+        }
       };
-      setTranscript((prev) => [...prev, userTurn]);
-      setStatus('thinking');
 
-      try {
-        const aiResponse = await onUserSpeech(text);
-
-        if (!isActiveRef.current) {
-          isProcessingRef.current = false;
-          return;
+      utterance.onerror = () => {
+        if (isSessionActiveRef.current) {
+          onDone?.();
         }
+      };
 
-        const aiTurn: VoiceTranscriptTurn = {
-          id: `ai-${Date.now()}`,
-          speaker: 'ai',
-          text: aiResponse,
-          timestamp: new Date(),
-        };
-        setTranscript((prev) => [...prev, aiTurn]);
+      window.speechSynthesis.speak(utterance);
+    };
 
-        setStatus('speaking');
-        await speakText(aiResponse);
-
-        if (onTurnComplete) {
-          onTurnComplete(text, aiResponse);
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      setVoiceAndSpeak();
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        setVoiceAndSpeak();
+      };
+      // Fallback if onvoiceschanged never fires
+      setTimeout(() => {
+        if (stateRef.current === 'speaking') {
+          setVoiceAndSpeak();
         }
-      } catch {
-        setError('Failed to get AI response');
-      } finally {
-        isProcessingRef.current = false;
-        if (isActiveRef.current) {
-          setStatus('listening');
-          setTimeout(() => {
-            if (isActiveRef.current) {
-              startRecognitionRef.current();
-            }
-          }, 400);
-        }
-      }
-    },
-    [onUserSpeech, onTurnComplete, stopSpeaking, speakText]
-  );
+      }, 500);
+    }
+  }, [updateState]);
 
   const startRecognition = useCallback(() => {
-    if (!isActiveRef.current) return;
+    if (!isSessionActiveRef.current) return;
 
-    const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
-    if (!SpeechRecognitionCtor) return;
+    const SpeechRecognitionClass = getSpeechRecognitionClass();
+    if (!SpeechRecognitionClass) return;
 
-    const recognition = new SpeechRecognitionCtor();
+    // Clean up previous instance
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (_) { /* ignore */ }
+      recognitionRef.current = null;
+    }
+
+    const recognition = new SpeechRecognitionClass();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
 
+    updateState('listening');
+    setInterimText('');
+
     recognition.onstart = () => {
-      if (isActiveRef.current) {
-        setStatus('listening');
-        setInterimText('');
-      }
+      updateState('listening');
     };
 
-    recognition.onresult = (event: ISpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = '';
       let final = '';
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
@@ -255,85 +209,146 @@ export function useVoiceChat({ onUserSpeech, onTurnComplete }: UseVoiceChatOptio
           interim += result[0].transcript;
         }
       }
-      if (interim) {
-        setInterimText(interim);
-        interimTextRef.current = interim;
-      }
-      if (final) {
+
+      setInterimText(interim);
+
+      if (final.trim()) {
         setInterimText('');
-        interimTextRef.current = '';
-        if (!isProcessingRef.current) {
-          processUserSpeech(final.trim());
+        const userText = final.trim();
+
+        // Add user turn to transcript
+        setTranscript(prev => [...prev, {
+          role: 'user',
+          text: userText,
+          id: `user-${Date.now()}`
+        }]);
+
+        updateState('thinking');
+
+        // Get AI response
+        onUserSpeechRef.current(userText).then(response => {
+          if (!isSessionActiveRef.current) return;
+
+          // Add AI turn to transcript
+          setTranscript(prev => [...prev, {
+            role: 'ai',
+            text: response,
+            id: `ai-${Date.now()}`
+          }]);
+
+          // Notify parent
+          onTurnCompleteRef.current?.(userText, response);
+
+          // Speak the response, then restart listening
+          speakText(response, () => {
+            if (isSessionActiveRef.current) {
+              updateState('idle');
+              // Small delay before restarting recognition
+              setTimeout(() => {
+                if (isSessionActiveRef.current) {
+                  startRecognition();
+                }
+              }, 300);
+            }
+          });
+        }).catch(() => {
+          if (isSessionActiveRef.current) {
+            updateState('idle');
+          }
+        });
+      }
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        // Restart on no-speech if session is still active
+        if (isSessionActiveRef.current && stateRef.current === 'listening') {
+          setTimeout(() => {
+            if (isSessionActiveRef.current && stateRef.current === 'listening') {
+              startRecognition();
+            }
+          }, 200);
         }
+        return;
+      }
+      // For other errors, just update state
+      if (isSessionActiveRef.current) {
+        updateState('idle');
       }
     };
 
     recognition.onend = () => {
-      if (!isActiveRef.current) return;
-
-      const lastInterim = interimTextRef.current;
-      setInterimText('');
-      interimTextRef.current = '';
-
-      if (lastInterim.trim() && !isProcessingRef.current) {
-        processUserSpeech(lastInterim.trim());
-      } else if (!isProcessingRef.current) {
+      // If we're still in listening state and session is active, restart
+      if (isSessionActiveRef.current && stateRef.current === 'listening') {
         setTimeout(() => {
-          if (isActiveRef.current && !isProcessingRef.current) {
-            startRecognitionRef.current();
+          if (isSessionActiveRef.current && stateRef.current === 'listening') {
+            startRecognition();
           }
-        }, 300);
+        }, 200);
       }
     };
 
-    recognition.onerror = (event: ISpeechRecognitionErrorEvent) => {
-      if (event.error === 'no-speech' || event.error === 'aborted') {
-        setTimeout(() => {
-          if (isActiveRef.current && !isProcessingRef.current) {
-            startRecognitionRef.current();
-          }
-        }, 300);
-        return;
-      }
-      setError(`Speech recognition error: ${event.error}`);
-    };
-
-    recognition.start();
-  }, [processUserSpeech]);
-
-  // Keep the ref up to date
-  useEffect(() => {
-    startRecognitionRef.current = startRecognition;
-  }, [startRecognition]);
+    try {
+      recognition.start();
+    } catch (err) {
+      // Recognition might already be started
+      console.warn('Recognition start error:', err);
+    }
+  }, [updateState, speakText]);
 
   const startSession = useCallback(() => {
-    const support = checkVoiceChatSupport();
-    if (!support.recognition || !support.synthesis) {
-      setError('Your browser does not support voice chat. Please use Chrome or Edge.');
-      return;
-    }
+    if (!isSupported) return;
+    if (isSessionActiveRef.current) return;
 
-    setError(null);
-    setIsActive(true);
-    isActiveRef.current = true;
-    isProcessingRef.current = false;
-    setStatus('listening');
+    isSessionActiveRef.current = true;
+    shouldRestartRef.current = false;
+    updateState('listening');
 
     setTimeout(() => {
-      startRecognitionRef.current();
+      if (isSessionActiveRef.current) {
+        startRecognition();
+      }
     }, 100);
-  }, []);
+  }, [isSupported, updateState, startRecognition]);
 
   const stopSession = useCallback(() => {
-    isActiveRef.current = false;
-    setIsActive(false);
-    isProcessingRef.current = false;
-    stopSpeaking();
-    stopRecognition();
-    setStatus('idle');
+    isSessionActiveRef.current = false;
+    shouldRestartRef.current = false;
+
+    // Stop recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (_) { /* ignore */ }
+      recognitionRef.current = null;
+    }
+
+    // Stop speech synthesis
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    updateState('idle');
     setInterimText('');
-    interimTextRef.current = '';
-  }, [stopSpeaking, stopRecognition]);
+  }, [updateState]);
+
+  const interruptAI = useCallback(() => {
+    if (stateRef.current !== 'speaking') return;
+
+    // Stop speech
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    // Restart listening
+    if (isSessionActiveRef.current) {
+      setTimeout(() => {
+        if (isSessionActiveRef.current) {
+          startRecognition();
+        }
+      }, 100);
+    }
+  }, [startRecognition]);
 
   const clearTranscript = useCallback(() => {
     setTranscript([]);
@@ -342,20 +357,27 @@ export function useVoiceChat({ onUserSpeech, onTurnComplete }: UseVoiceChatOptio
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      isActiveRef.current = false;
-      stopSpeaking();
-      stopRecognition();
+      isSessionActiveRef.current = false;
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (_) { /* ignore */ }
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
     };
-  }, [stopSpeaking, stopRecognition]);
+  }, []);
 
   return {
-    status,
+    state,
     transcript,
-    isActive,
-    error,
     interimText,
+    isSupported,
+    isActive: isSessionActiveRef.current,
     startSession,
     stopSession,
+    interruptAI,
     clearTranscript,
   };
 }
